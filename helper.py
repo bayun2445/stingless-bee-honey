@@ -23,11 +23,3 @@ def generate_float_range_arr(min, max, step):
         arr.append(i)
         i += step
     return arr
-
-
-labels = {
-    0: "Lampung",
-    1: "Bogor",
-    2: "Sukabumi",
-    3: "Rangkasbitung",
-}
