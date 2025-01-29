@@ -2,16 +2,18 @@ from flask import request, jsonify, Flask
 from werkzeug.utils import secure_filename
 import pandas as pd
 import numpy as np
+import json
 import logging
 import joblib
 import os
 
-from helper import wavelength_xlsx_to_array, labels
+from helper import wavelength_xlsx_to_array
 
 app = Flask(__name__)
 
 # import model
-svm_file = open('./model/model_svm_stingless_bee_honey.pkl','rb')
+# svm_file = open('./model/model_svm_stingless_bee_honey.pkl','rb')
+svm_file = open('./model/model_svm_prob.pkl','rb')
 pca_file = open('./model/pca.pkl', 'rb')
 model = joblib.load(svm_file)
 pca = joblib.load(pca_file)
@@ -54,17 +56,19 @@ def predict():
             
             # prediksi
             df_new_data_input = pd.DataFrame(input_pca, columns=['comp 1', 'comp 2', 'comp 3', 'comp 4', 'comp 5', 'comp 6'])  
-            prediction = model.predict(df_new_data_input)
-            output = prediction.tolist()[0]
+            prediction = model.predict_proba(df_new_data_input)
+            prediction_probabilities = prediction.tolist()[0]
+            label = int(np.argmax(prediction))
 
             return jsonify({
                 'success': True,
                 'message': 'Prediction success!',
                 'result': {
-                    'label_num': output, 
-                    'label_name': labels.get(output)
+                    'label_num': label,
+                    'accuracy': 0.9625,
+                    'label_prob': prediction_probabilities[label]
                 }
-            })
+            }), 200
 
         except ValueError:
             return jsonify({
@@ -72,9 +76,10 @@ def predict():
                 'message': 'Error: Invalid input data',
                 'result': {
                     'label_num': None, 
-                    'label_name': None
+                    'accuracy': None,
+                    'label_prob': None
                 }
-            })
+            }), 400
 
         except Exception as e:
             return jsonify({
@@ -82,9 +87,35 @@ def predict():
                 'message': f'Error: {e}',
                 'result': {
                     'label_num': None, 
-                    'label_name': None
+                    'accuracy': None,
+                    'label_prob': None
                 }
-            })
+            }), 500
+
+@app.route('/spectral-data', methods=['GET'])
+def getSpectralData():
+    try:
+        with open('./asset/spectral_data_imputed.json', 'r') as file:
+            data = json.load(file)    
+
+        return jsonify({
+            'success': True,
+            'error': None,
+            'data': data,
+        }), 200
+
+    except FileNotFoundError:
+        return jsonify({
+            'success': False,
+            'error': 'File not found',
+            'data': None
+        }), 404
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error: {e}',
+            'data': None
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
